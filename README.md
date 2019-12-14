@@ -3,7 +3,7 @@
 Reference the module to a specific version (recommended):
 
 ```sh
-module "aks" {
+module "weavescope" {
     source = "git://github.com/melvinlee/helm-terraform-weavescope.git?ref=v0.1"
 
     helm_release_name  = var.helm_release_name
