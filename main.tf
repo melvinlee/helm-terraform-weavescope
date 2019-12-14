@@ -1,29 +1,36 @@
+# Hack for module-to-module dependencies.
+# https://github.com/hashicorp/terraform/issues/1178#issuecomment-449158607
+# and
+# https://github.com/hashicorp/terraform/issues/1178#issuecomment-473091030
+# Make sure to add this null_resource.dependency_getter to the `depends_on`
+# attribute to all resource(s) that will be constructed first within this
+# module:
+resource "null_resource" "dependency_getter" {
+  triggers = {
+    my_dependencies = "${join(",", var.dependencies)}"
+  }
+}
+
 data "helm_repository" "helm_repo" {
   name = var.helm_repo.name
   url  = var.helm_repo.uri
 }
 
-resource "random_pet" "helm_release_name" {
-  separator = "-"
-  keepers = {
-    helm_chart_name = var.helm_chart_name
-  }
+resource "helm_release" "weavescope" {
+  depends_on = [null_resource.dependency_getter]
+  name       = var.helm_release_name
+  chart      = "weave-scope"
+  namespace  = var.helm_namespace
+  version    = var.helm_chart_version
+  values     = trimspace(var.values) == "" && var.values == null ? [] : [var.values]
+  repository = data.helm_repository.helm_repo.metadata.0.name
 }
 
-resource "kubernetes_namespace" "weavescope_namespace" {
-  metadata {
-    annotations = var.namespace_annotations
-    labels      = var.namespace_labels
-    name        = var.namespace
-  }
-}
-
-resource "helm_release" "helm_charts" {
-  disable_webhooks = true
-  name             = trimspace(var.helm_release_name) == "" || var.helm_release_name == null ? random_pet.helm_release_name.id : trimspace(var.helm_release_name)
-  chart            = var.helm_chart_name
-  namespace        = kubernetes_namespace.weavescope_namespace.metadata.0.name
-  values           = trimspace(var.values) == "" && var.values == null ? [] : [var.values]
-  version          = var.chart_version
-  repository       = data.helm_repository.helm_repo.metadata.0.name
+resource "null_resource" "dependency_setter" {
+  # Hack for module-to-module dependencies.
+  # https://github.com/hashicorp/terraform/issues/1178#issuecomment-449158607
+  # List resource(s) that will be constructed last within the module.
+  depends_on = [
+    "helm_release.weavescope"
+  ]
 }
