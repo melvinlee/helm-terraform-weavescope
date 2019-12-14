@@ -1,6 +1,6 @@
 data "helm_repository" "helm_repo" {
-  name = var.helm_repo_name
-  url  = var.helm_repo_uri
+  name = var.helm_repo.name
+  url  = var.helm_repo.uri
 }
 
 resource "random_pet" "helm_release_name" {
